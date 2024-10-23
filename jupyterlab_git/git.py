@@ -1138,7 +1138,8 @@ class Git:
 
         if is_remote_branch:
             local_branchname = branchname.split("/")[-1]
-            cmd = ["git", "checkout", "-B", local_branchname, branchname]
+            print("HAPPYSs", local_branchname, branchname, reference_name)
+            cmd = ["git", "checkout", local_branchname]
         else:
             cmd = ["git", "checkout", branchname]
 
