@@ -3,20 +3,23 @@ import { PageConfig, PathExt } from '@jupyterlab/coreutils';
 import { TranslationBundle } from '@jupyterlab/translation';
 import {
   caretDownIcon,
-  caretUpIcon,
+  caretRightIcon,
   refreshIcon
 } from '@jupyterlab/ui-components';
 import { CommandRegistry } from '@lumino/commands';
-import { Badge, Tab, Tabs } from '@mui/material';
+import { Badge } from '@mui/material';
 import * as React from 'react';
 import { classes } from 'typestyle';
 import { showError } from '../notifications';
 import {
-  selectedTabClass,
-  tabClass,
-  tabIndicatorClass,
-  tabsClass
-} from '../style/GitPanel';
+  changeStageButtonStyle,
+  sectionAreaStyle,
+  sectionFileContainerStyle
+} from '../style/GitStageStyle';
+import {
+  sectionHeaderLabelStyle,
+  stashContainerStyle
+} from '../style/GitStashStyle';
 import {
   badgeClass,
   spacer,
@@ -120,6 +123,10 @@ export interface IToolbarState {
    * Boolean indicating whether a remote exists.
    */
   hasRemote: boolean;
+
+  showBranches: boolean;
+
+  showTags: boolean;
 }
 
 /**
@@ -138,7 +145,9 @@ export class Toolbar extends React.Component<IToolbarProps, IToolbarState> {
       branchMenu: false,
       tab: 0,
       refreshInProgress: false,
-      hasRemote: false
+      hasRemote: false,
+      showBranches: false,
+      showTags: false
     };
   }
 
@@ -321,73 +330,71 @@ export class Toolbar extends React.Component<IToolbarProps, IToolbarState> {
           title={this.props.trans.__('Manage branches and tags')}
           onClick={this._onBranchClick}
         >
-          <branchIcon.react tag="span" className={toolbarMenuButtonIconClass} />
+          {this.state.branchMenu ? (
+            <caretDownIcon.react
+              tag="span"
+              className={toolbarMenuButtonIconClass}
+            />
+          ) : (
+            <caretRightIcon.react
+              tag="span"
+              className={toolbarMenuButtonIconClass}
+            />
+          )}
           <div className={toolbarMenuButtonTitleWrapperClass}>
             <p className={toolbarMenuButtonTitleClass}>{branchTitle}</p>
             <p className={toolbarMenuButtonSubtitleClass}>
               {this.props.currentBranch || ''}
             </p>
           </div>
-          {this.state.branchMenu ? (
-            <caretUpIcon.react
-              tag="span"
-              className={toolbarMenuButtonIconClass}
-            />
-          ) : (
-            <caretDownIcon.react
-              tag="span"
-              className={toolbarMenuButtonIconClass}
-            />
-          )}
+          <branchIcon.react tag="span" className={toolbarMenuButtonIconClass} />
         </button>
-        {this.state.branchMenu ? this._renderTabs() : null}
+        {/* {this.state.branchMenu ? this._renderTabs() : null}
+         */}
+        {this.state.branchMenu && this._renderBranches()}
+        {this.state.branchMenu && this._renderTags()}
       </div>
     );
   }
 
-  private _renderTabs(): JSX.Element {
+  private _renderSection(
+    title: string,
+    isVisible: boolean,
+    toggleVisibility: () => void,
+    ContentComponent: JSX.Element
+  ): JSX.Element {
     return (
-      <React.Fragment>
-        <Tabs
-          classes={{
-            root: tabsClass,
-            indicator: tabIndicatorClass
-          }}
-          value={this.state.tab}
-          onChange={(event: any, tab: number): void => {
-            this.setState({
-              tab: tab
-            });
-          }}
-        >
-          <Tab
-            classes={{
-              root: tabClass,
-              selected: selectedTabClass
-            }}
-            title={this.props.trans.__('View branches')}
-            label={this.props.trans.__('Branches')}
-            disableFocusRipple={true}
-            disableRipple={true}
-          ></Tab>
-          <Tab
-            classes={{
-              root: tabClass,
-              selected: selectedTabClass
-            }}
-            title={this.props.trans.__('View tags')}
-            label={this.props.trans.__('Tags')}
-            disableFocusRipple={true}
-            disableRipple={true}
-          ></Tab>
-        </Tabs>
-        {this.state.tab === 0 ? this._renderBranches() : this._renderTags()}
-      </React.Fragment>
+      <div
+        className={classes(sectionFileContainerStyle, stashContainerStyle)}
+        style={{ paddingLeft: 4 }}
+      >
+        <div className={sectionAreaStyle} onClick={toggleVisibility}>
+          <button className={changeStageButtonStyle}>
+            {isVisible ? (
+              <caretDownIcon.react tag="span" />
+            ) : (
+              <caretRightIcon.react tag="span" />
+            )}
+          </button>
+
+          <span className={sectionHeaderLabelStyle}>
+            <span>{this.props.trans.__(title)}</span>
+          </span>
+        </div>
+
+        {isVisible && <div style={{ marginLeft: 8 }}>{ContentComponent}</div>}
+      </div>
     );
   }
 
   private _renderBranches(): JSX.Element {
-    return (
+    return this._renderSection(
+      'Branches',
+      this.state.showBranches,
+      () => {
+        this.setState({ showBranches: !this.state.showBranches });
+        this.setState({ showTags: false });
+      },
       <BranchMenu
         currentBranch={this.props.currentBranch || ''}
         branches={this.props.branches}
@@ -400,14 +407,20 @@ export class Toolbar extends React.Component<IToolbarProps, IToolbarState> {
   }
 
   private _renderTags(): JSX.Element {
-    return (
+    return this._renderSection(
+      'Tags',
+      this.state.showTags,
+      () => {
+        this.setState({ showTags: !this.state.showTags });
+        this.setState({ showBranches: false });
+      },
       <TagMenu
         pastCommits={this.props.pastCommits}
         tagsList={this.props.tagsList}
         model={this.props.model}
         branching={this.props.branching}
         trans={this.props.trans}
-      ></TagMenu>
+      />
     );
   }
 

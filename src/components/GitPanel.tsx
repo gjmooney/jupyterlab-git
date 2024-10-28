@@ -3,26 +3,36 @@ import { PathExt } from '@jupyterlab/coreutils';
 import { FileBrowserModel } from '@jupyterlab/filebrowser';
 import { ISettingRegistry } from '@jupyterlab/settingregistry';
 import { TranslationBundle } from '@jupyterlab/translation';
+import {
+  addIcon,
+  caretDownIcon,
+  caretRightIcon
+} from '@jupyterlab/ui-components';
 import { CommandRegistry } from '@lumino/commands';
 import { JSONObject } from '@lumino/coreutils';
 import { Signal } from '@lumino/signaling';
 import { WarningRounded as WarningRoundedIcon } from '@mui/icons-material';
-import Tab from '@mui/material/Tab';
-import Tabs from '@mui/material/Tabs';
 import * as React from 'react';
+import { classes } from 'typestyle';
 import { GitExtension } from '../model';
 import { showError } from '../notifications';
-import { hiddenButtonStyle } from '../style/ActionButtonStyle';
 import {
   panelWrapperClass,
   repoButtonClass,
-  selectedTabClass,
-  tabClass,
-  tabIndicatorClass,
-  tabsClass,
   warningTextClass
 } from '../style/GitPanel';
-import { addIcon, rewindIcon, trashIcon } from '../style/icons';
+
+import { hiddenButtonStyle } from '../style/ActionButtonStyle';
+import {
+  changeStageButtonStyle,
+  sectionAreaStyle,
+  sectionFileContainerStyle
+} from '../style/GitStageStyle';
+import {
+  sectionHeaderLabelStyle,
+  stashContainerStyle
+} from '../style/GitStashStyle';
+import { rewindIcon, trashIcon } from '../style/icons';
 import { CommandIDs, Git } from '../tokens';
 import { openFileDiff, stopPropagationWrapper } from '../utils';
 import { GitAuthorForm } from '../widgets/AuthorBox';
@@ -155,6 +165,9 @@ export interface IGitPanelState {
    *
    */
   stash: Git.IStash[];
+
+  showChanges: boolean;
+  showHistory: boolean;
 }
 
 /**
@@ -195,7 +208,9 @@ export class GitPanel extends React.Component<IGitPanelProps, IGitPanelState> {
       referenceCommit: null,
       challengerCommit: null,
       stash: stash,
-      tagsList: tagsList
+      tagsList: tagsList,
+      showChanges: false,
+      showHistory: false
     };
   }
 
@@ -422,48 +437,36 @@ export class GitPanel extends React.Component<IGitPanelProps, IGitPanelState> {
   private _renderMain(): React.ReactElement {
     return (
       <React.Fragment>
-        {this._renderTabs()}
-        {this.state.tab === 1 ? this._renderHistory() : this._renderChanges()}
+        {this._renderChanges()}
+        {this._renderHistory()}
       </React.Fragment>
     );
   }
 
-  /**
-   * Renders panel tabs.
-   *
-   * @returns React element
-   */
-  private _renderTabs(): React.ReactElement {
+  private _renderSection(
+    title: string,
+    isVisible: boolean,
+    toggleVisibility: () => void,
+    ContentComponent: JSX.Element
+  ): JSX.Element {
     return (
-      <Tabs
-        classes={{
-          root: tabsClass,
-          indicator: tabIndicatorClass
-        }}
-        value={this.state.tab}
-        onChange={this._onTabChange}
-      >
-        <Tab
-          classes={{
-            root: tabClass,
-            selected: selectedTabClass
-          }}
-          title={this.props.trans.__('View changed files')}
-          label={this.props.trans.__('Changes')}
-          disableFocusRipple={true}
-          disableRipple={true}
-        />
-        <Tab
-          classes={{
-            root: tabClass,
-            selected: selectedTabClass
-          }}
-          title={this.props.trans.__('View commit history')}
-          label={this.props.trans.__('History')}
-          disableFocusRipple={true}
-          disableRipple={true}
-        />
-      </Tabs>
+      <div className={classes(sectionFileContainerStyle, stashContainerStyle)}>
+        <div className={sectionAreaStyle} onClick={toggleVisibility}>
+          <button className={changeStageButtonStyle}>
+            {isVisible ? (
+              <caretDownIcon.react tag="span" />
+            ) : (
+              <caretRightIcon.react tag="span" />
+            )}
+          </button>
+
+          <span className={sectionHeaderLabelStyle}>
+            <span>{this.props.trans.__(title)}</span>
+          </span>
+        </div>
+
+        {isVisible && <div style={{ marginLeft: 8 }}>{ContentComponent}</div>}
+      </div>
     );
   }
 
@@ -497,7 +500,13 @@ export class GitPanel extends React.Component<IGitPanelProps, IGitPanelState> {
           'You have unsaved staged files. You probably want to save and stage all needed changes before committing.'
         );
 
-    return (
+    return this._renderSection(
+      'Changes',
+      this.state.showChanges,
+      () => {
+        this.setState({ showChanges: !this.state.showChanges });
+        this.setState({ showHistory: false });
+      },
       <React.Fragment>
         <FileList
           files={this._sortedFiles}
@@ -588,7 +597,13 @@ export class GitPanel extends React.Component<IGitPanelProps, IGitPanelState> {
    * @returns React element
    */
   private _renderHistory(): React.ReactElement {
-    return (
+    return this._renderSection(
+      'History',
+      this.state.showHistory,
+      () => {
+        this.setState({ showHistory: !this.state.showHistory });
+        this.setState({ showChanges: false });
+      },
       <React.Fragment>
         <HistorySideBar
           branches={this.state.branches}
@@ -704,21 +719,6 @@ export class GitPanel extends React.Component<IGitPanelProps, IGitPanelState> {
       </React.Fragment>
     );
   }
-
-  /**
-   * Callback invoked upon changing the active panel tab.
-   *
-   * @param event - event object
-   * @param tab - tab number
-   */
-  private _onTabChange = (event: any, tab: number): void => {
-    if (tab === 1) {
-      this.refreshHistory();
-    }
-    this.setState({
-      tab: tab
-    });
-  };
 
   /**
    * Updates the commit message description.

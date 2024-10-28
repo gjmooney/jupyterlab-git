@@ -30,6 +30,7 @@ export const sectionFileContainerStyle = style(
       margin: '0',
       padding: '0',
       overflow: 'auto',
+      minHeight: '25px',
       $nest: {}
     };
 

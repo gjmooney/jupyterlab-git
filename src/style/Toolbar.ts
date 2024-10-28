@@ -34,7 +34,7 @@ export const toolbarMenuButtonClass = style({
   minHeight: '50px',
 
   /* top | right | bottom | left */
-  padding: '4px 11px 4px 11px',
+  padding: '4px 11px 4px 4px',
 
   fontSize: 'var(--jp-ui-font-size1)',
   lineHeight: '1.5em',
